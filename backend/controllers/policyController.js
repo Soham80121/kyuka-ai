@@ -1,6 +1,6 @@
 const { Readable } = require("node:stream");
 const Policy = require("../models/Policy");
-const { PDFParse } = require("pdf-parse");
+const pdfParse = require("pdf-parse");
 const Notification = require("../models/Notification");
 const mongoose = require("mongoose");
 
@@ -34,14 +34,8 @@ exports.uploadPolicy = async (req, res) => {
       return res.status(503).json({ message: "File storage is not configured on this deployment." });
     }
 
-    let pdfText = "";
-    const parser = new PDFParse({ data: req.file.buffer });
-    try {
-      const result = await parser.getText();
-      pdfText = result.text || "";
-    } finally {
-      await parser.destroy();
-    }
+    const parsedPdf = await pdfParse(req.file.buffer);
+    const pdfText = parsedPdf.text || "";
 
     const { put } = await getBlobSdk();
     const safeName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
