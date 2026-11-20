@@ -1,20 +1,23 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 
+let initializationPromise;
+
 const initAdmin = async () => {
-  try {
-    const adminExists = await User.findOne({ role: "admin" });
-    if (!adminExists) {
+  if (initializationPromise) return initializationPromise;
+
+  initializationPromise = (async () => {
+    try {
+      const adminExists = await User.findOne({ role: "admin" });
+      if (adminExists) return;
+
       if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
-        console.warn("Startup Warning: ADMIN_EMAIL or ADMIN_PASSWORD environment variables are missing.");
-        console.warn("Cannot create the initial Admin account.");
+        console.warn("Initial admin was not created: ADMIN_EMAIL or ADMIN_PASSWORD is missing.");
         return;
       }
 
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, salt);
-
-      const adminUser = new User({
+      const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
+      await User.create({
         name: "Admin",
         email: process.env.ADMIN_EMAIL,
         password: hashedPassword,
@@ -24,15 +27,15 @@ const initAdmin = async () => {
         mustChangePassword: false,
         firstLogin: false,
       });
-
-      await adminUser.save();
       console.log("Initial Admin account created successfully.");
-    } else {
-      console.log("Admin account already exists.");
+    } catch (error) {
+      initializationPromise = null;
+      console.error("Failed to initialize Admin:", error);
+      throw error;
     }
-  } catch (error) {
-    console.error("Failed to initialize Admin:", error);
-  }
+  })();
+
+  return initializationPromise;
 };
 
 module.exports = initAdmin;
