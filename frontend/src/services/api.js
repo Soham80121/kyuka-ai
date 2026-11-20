@@ -1,16 +1,13 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
+  // API routes are served from the same Vercel project in production.
+  baseURL: import.meta.env.VITE_API_URL || "",
 });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
