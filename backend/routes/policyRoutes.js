@@ -1,37 +1,28 @@
 const express = require("express");
-const router = express.Router();
+const multer = require("multer");
 const auth = require("../middleware/authMiddleware");
 const { restrictTo } = require("../middleware/roleMiddleware");
-const multer = require("multer");
-const path = require("path");
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
-
-const upload = multer({ 
-  storage: storage,
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === "application/pdf") {
-      cb(null, true);
-    } else {
-      cb(new Error("Only PDF files are allowed!"));
-    }
-  }
-});
-
 const {
   getPolicies,
   uploadPolicy,
+  downloadPolicy,
   deletePolicy,
 } = require("../controllers/policyController");
 
+const router = express.Router();
+
+// Vercel Functions have a 4.5 MB request-body limit. Keep uploads below that limit.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "application/pdf") return cb(null, true);
+    cb(new Error("Only PDF files are allowed."));
+  },
+});
+
 router.get("/", auth, getPolicies);
+router.get("/:id/file", auth, downloadPolicy);
 router.post("/upload", auth, restrictTo("admin", "hr"), upload.single("policyFile"), uploadPolicy);
 router.delete("/:id", auth, restrictTo("admin", "hr"), deletePolicy);
 
